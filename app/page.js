@@ -6,7 +6,8 @@ const GREY = "#a8a8a8";
 
 export default function Home() {
   const [prompt, setPrompt] = useState("");
-  const [img, setImg] = useState("/neo4.png");
+  const [img, setImg] = useState("/neo4.png"); // example image always visible
+  const [genImg, setGenImg] = useState(""); // generated image
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -28,8 +29,9 @@ export default function Home() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
-      if (typeof data?.image !== "string") throw new Error("No image content found in response");
-      setImg(data.image);
+      if (typeof data?.image !== "string")
+        throw new Error("No image content found in response");
+      setGenImg(data.image); // show below
     } catch (err) {
       setError(err.message || "Generation failed.");
     } finally {
@@ -49,8 +51,8 @@ export default function Home() {
         </p>
       </div>
 
-      {/* Card (33% narrower) */}
-      <div className="bg-[#0b0b0b] border border-zinc-800 rounded-2xl p-6 shadow-lg w-full max-w-[450px]">
+      {/* Card (medium-wide) */}
+      <div className="bg-[#0b0b0b] border border-zinc-800 rounded-2xl p-6 shadow-lg w-full max-w-[560px]">
         <form onSubmit={onSubmit} className="space-y-4">
           <input
             value={prompt}
@@ -73,19 +75,31 @@ export default function Home() {
           </div>
         )}
 
-        {/* Image stays same size */}
+        {/* Example image always stays */}
         <div className="mt-5 flex justify-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={img}
-            alt="preview"
+            alt="example"
             className="w-64 h-64 rounded-xl border border-zinc-800 object-cover"
           />
         </div>
       </div>
 
+      {/* Generated image appears BELOW the card, larger */}
+      {genImg && (
+        <div className="mt-8 flex justify-center">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={genImg}
+            alt="generated"
+            className="w-80 h-80 rounded-2xl border border-zinc-700 object-cover shadow-lg"
+          />
+        </div>
+      )}
+
       {/* Footer */}
-      <div className="mt-6 text-center text-sm" style={{ color: GREY }}>
+      <div className="mt-8 text-center text-sm" style={{ color: GREY }}>
         Powered by{" "}
         <a
           href="https://hypertek.app/"
@@ -101,3 +115,4 @@ export default function Home() {
     </main>
   );
 }
+
