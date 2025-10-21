@@ -1,60 +1,36 @@
 import { NextResponse } from "next/server";
 
-const terminal = new Set(["succeeded", "failed", "canceled"]);
-
-function siteOrigin() {
-  const v = process.env.VERCEL_URL;
-  if (!v) return "";
-  return v.startsWith("http") ? v : `https://${v}`;
-}
-
 export async function POST(req) {
   try {
     const token = process.env.REPLICATE_API_TOKEN;
     const version = process.env.REPLICATE_MODEL_VERSION;
-    if (!token || !version)
-      return NextResponse.json({ error: "Missing API credentials" }, { status: 500 });
+    if (!token) throw new Error("Missing REPLICATE_API_TOKEN");
+    if (!version) throw new Error("Missing REPLICATE_MODEL_VERSION");
 
     const { prompt } = await req.json().catch(() => ({}));
-    if (!prompt) return NextResponse.json({ error: "Prompt required" }, { status: 400 });
+    if (!prompt) throw new Error("Missing prompt");
 
-    const base = siteOrigin();
-    const refs = [`${base}/neo1.png`, `${base}/neo2.png`, `${base}/neo3.png`, `${base}/neo4.png`];
+    const origin = process.env.NEXT_PUBLIC_SITE_URL || `https://${process.env.VERCEL_URL}`;
+    const image_input = [`${origin}/neo1.png`, `${origin}/neo2.png`, `${origin}/neo3.png`, `${origin}/neo4.png`];
+
+    // Quick sanity log
+    console.log("ENV OK:", { origin, hasToken: !!token, hasVersion: !!version });
 
     const start = await fetch("https://api.replicate.com/v1/predictions", {
       method: "POST",
       headers: { Authorization: `Token ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        version,
-        input: {
-          prompt,
-          image_input: refs,
-          guidance_scale: 7,
-          num_inference_steps: 20,
-        },
-      }),
+      body: JSON.stringify({ version, input: { prompt, image_input } }),
     });
 
-    const { id } = await start.json();
-    let result;
-    for (let i = 0; i < 45; i++) {
-      const poll = await fetch(`https://api.replicate.com/v1/predictions/${id}`, {
-        headers: { Authorization: `Token ${token}` },
-      });
-      const d = await poll.json();
-      if (terminal.has(d.status)) {
-        result = d;
-        break;
-      }
-      await new Promise((r) => setTimeout(r, 1500));
+    if (!start.ok) {
+      const t = await start.text();
+      throw new Error(`Replicate start failed: ${t}`);
     }
 
-    if (!result || result.status !== "succeeded")
-      return NextResponse.json({ error: "Generation failed" }, { status: 502 });
-
-    const url = result.output?.[0];
-    return NextResponse.json({ image: url });
+    const data = await start.json();
+    return NextResponse.json(data);
   } catch (e) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
+    console.error("API Error:", e);
+    return NextResponse.json({ error: String(e.message || e) }, { status: 502 });
   }
 }
