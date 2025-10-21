@@ -6,8 +6,8 @@ const GREY = "#a8a8a8";
 
 export default function Home() {
   const [prompt, setPrompt] = useState("");
-  const [img, setImg] = useState("/neo4.png"); // example image always visible
-  const [genImg, setGenImg] = useState(""); // generated image
+  const [img, setImg] = useState("/neo4.png");
+  const [genImg, setGenImg] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -31,7 +31,7 @@ export default function Home() {
       if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
       if (typeof data?.image !== "string")
         throw new Error("No image content found in response");
-      setGenImg(data.image); // show below
+      setGenImg(data.image);
     } catch (err) {
       setError(err.message || "Generation failed.");
     } finally {
@@ -51,7 +51,7 @@ export default function Home() {
         </p>
       </div>
 
-      {/* Card (medium-wide) */}
+      {/* Card (medium-wide, centered) */}
       <div className="bg-[#0b0b0b] border border-zinc-800 rounded-2xl p-6 shadow-lg w-full max-w-[560px]">
         <form onSubmit={onSubmit} className="space-y-4">
           <input
@@ -75,7 +75,7 @@ export default function Home() {
           </div>
         )}
 
-        {/* Example image always stays */}
+        {/* Example image (always visible) */}
         <div className="mt-5 flex justify-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -86,14 +86,18 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Generated image appears BELOW the card, larger */}
+      {/* Generated image below (same width as box, square shape) */}
       {genImg && (
-        <div className="mt-8 flex justify-center">
+        <div className="mt-8 w-full flex justify-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={genImg}
             alt="generated"
-            className="w-80 h-80 rounded-2xl border border-zinc-700 object-cover shadow-lg"
+            className="rounded-2xl border border-zinc-700 object-cover shadow-lg"
+            style={{
+              width: "560px", // exact same width as card
+              height: "560px", // square ratio
+            }}
           />
         </div>
       )}
