@@ -1,42 +1,26 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
-// Deep scan for an image URL anywhere in the JSON
-function findImageUrlDeep(any) {
-  const urls = [];
-  const rx = /^https?:\/\/.+\.(png|jpg|jpeg|webp|gif)(\?.*)?$/i;
-  const rxRep = /^https?:\/\/replicate\.delivery\/.+/i;
-
-  const walk = (v) => {
-    if (!v) return;
-    if (typeof v === "string") {
-      if (rx.test(v) || rxRep.test(v)) urls.push(v);
-      return;
-    }
-    if (Array.isArray(v)) return v.forEach(walk);
-    if (typeof v === "object") return Object.values(v).forEach(walk);
-  };
-
-  walk(any);
-  return urls[0] || null;
-}
+/** brand colors */
+const BLUE = "#0d38fb";       // vivid blue
+const GREY = "#a8a8a8";       // grey
 
 export default function Home() {
   const [prompt, setPrompt] = useState("");
-  const [img, setImg] = useState("");
+  const [img, setImg] = useState("/neo4.png"); // example image shown on load
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [debug, setDebug] = useState(null);
 
-  async function handleGenerate() {
-    setError("");
-    setImg("");
-    setDebug(null);
+  // handle submit (supports Enter/Return)
+  async function onSubmit(e) {
+    e.preventDefault(); // stop page reload
+    if (loading) return;
     const text = prompt.trim();
     if (!text) {
-      setError("Type a prompt first");
+      setError("Type your prompt first.");
       return;
     }
+    setError("");
     setLoading(true);
     try {
       const res = await fetch("/api/generate", {
@@ -45,25 +29,14 @@ export default function Home() {
         body: JSON.stringify({ prompt: text }),
       });
       const data = await res.json().catch(() => ({}));
-
       if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
 
-      // our API returns { prediction }
-      const prediction = data?.prediction ?? data;
-      const url =
-        // sometimes models return array of strings
-        (Array.isArray(prediction?.output) &&
-          prediction.output.find((x) => typeof x === "string")) ||
-        // sometimes a single string
-        (typeof prediction?.output === "string" ? prediction.output : null) ||
-        // last resort: deep search for any image-like URL
-        findImageUrlDeep(prediction);
-
-      if (!url) {
-        setDebug(prediction);
-        throw new Error("No image URL returned by model.");
+      // API returns { image: "https://..." }
+      if (typeof data?.image === "string") {
+        setImg(data.image);
+      } else {
+        throw new Error("No image URL returned.");
       }
-      setImg(url);
     } catch (err) {
       setError(err.message || "Generation failed.");
     } finally {
@@ -73,46 +46,70 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-black text-white flex items-center justify-center p-6">
-      <div className="w-full max-w-xl space-y-4">
-        <h1 className="text-4xl font-bold text-center">NEO Generator</h1>
+      <div className="w-full max-w-2xl">
+        {/* Header */}
+        <div className="text-center mb-6">
+          <h1
+            className="text-5xl font-extrabold tracking-tight"
+            style={{ color: BLUE }}
+          >
+            NEO
+          </h1>
+          <p
+            className="mt-2 text-base"
+            style={{ color: GREY }}
+          >
+            AI Meme Generator
+          </p>
+        </div>
 
-        <input
-          value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
-          placeholder="Type your prompt here"
-          className="w-full rounded-lg bg-zinc-900 border border-zinc-700 p-3 outline-none"
-        />
+        {/* Card */}
+        <div className="bg-[#0b0b0b] border border-zinc-800 rounded-2xl p-5 shadow-lg">
+          <form onSubmit={onSubmit} className="space-y-4">
+            <input
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              placeholder="Type your prompt here"
+              className="w-full rounded-xl bg-zinc-900 border border-zinc-700 focus:border-zinc-500 p-3 outline-none placeholder-zinc-500"
+            />
 
-        <button
-          onClick={handleGenerate}
-          disabled={loading}
-          className="w-full rounded-lg p-3 font-semibold bg-[#0d38fb] disabled:opacity-60"
-        >
-          {loading ? "Generating…" : "Generate"}
-        </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full rounded-xl p-3 font-semibold transition
+                         bg-gradient-to-r from-[#0d38fb] to-[#00e5ff]
+                         disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {loading ? "Generating…" : "Generate Meme"}
+            </button>
+          </form>
 
-        {error && (
-          <div className="text-red-400 bg-red-950/30 border border-red-700 rounded p-3">
-            {error}
+          {error && (
+            <div className="mt-3 text-red-400 bg-red-950/30 border border-red-700 rounded-lg p-3">
+              {error}
+            </div>
+          )}
+
+          {/* Preview */}
+          <div className="mt-5 overflow-hidden rounded-xl border border-zinc-800">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={img} alt="preview" className="w-full h-auto" />
           </div>
-        )}
+        </div>
 
-        {img && (
-          <img
-            src={img}
-            alt="result"
-            className="w-full rounded-lg border border-zinc-800"
-          />
-        )}
-
-        {debug && (
-          <details className="bg-zinc-900/60 border border-zinc-800 rounded p-3">
-            <summary className="cursor-pointer">Debug JSON</summary>
-            <pre className="text-xs whitespace-pre-wrap break-all">
-              {JSON.stringify(debug, null, 2)}
-            </pre>
-          </details>
-        )}
+        {/* Footer */}
+        <div className="mt-6 text-center text-sm" style={{ color: GREY }}>
+          Powered by{" "}
+          <a
+            href="https://hypertek.app/"
+            target="_blank"
+            rel="noreferrer"
+            className="underline hover:no-underline"
+          >
+            HyperTek
+          </a>{" "}
+          ⚡
+        </div>
       </div>
     </main>
   );
