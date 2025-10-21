@@ -6,7 +6,7 @@ const GREY = "#a8a8a8";
 
 export default function Home() {
   const [prompt, setPrompt] = useState("");
-  const [img, setImg] = useState("/neo4.png"); // example preview
+  const [img, setImg] = useState("/neo4.png");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -49,8 +49,8 @@ export default function Home() {
         </p>
       </div>
 
-      {/* Card — widen to match Four.Meme */}
-      <div className="bg-[#0b0b0b] border border-zinc-800 rounded-2xl p-6 shadow-lg w-full max-w-[680px]">
+      {/* Card (33% narrower) */}
+      <div className="bg-[#0b0b0b] border border-zinc-800 rounded-2xl p-6 shadow-lg w-full max-w-[450px]">
         <form onSubmit={onSubmit} className="space-y-4">
           <input
             value={prompt}
@@ -73,7 +73,7 @@ export default function Home() {
           </div>
         )}
 
-        {/* Preview stays compact like Four.Meme */}
+        {/* Image stays same size */}
         <div className="mt-5 flex justify-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
