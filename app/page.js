@@ -6,7 +6,7 @@ const GREY = "#a8a8a8";
 
 export default function Home() {
   const [prompt, setPrompt] = useState("");
-  const [img, setImg] = useState("/neo4.png"); // default small example image
+  const [img, setImg] = useState("/neo4.png"); // example preview
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -15,7 +15,7 @@ export default function Home() {
     if (loading) return;
     const text = prompt.trim();
     if (!text) {
-      setError("Type your prompt first.");
+      setError("Type a prompt first.");
       return;
     }
     setError("");
@@ -49,14 +49,14 @@ export default function Home() {
         </p>
       </div>
 
-      {/* Compact Card */}
-      <div className="bg-[#0b0b0b] border border-zinc-800 rounded-2xl p-6 shadow-lg w-full max-w-md">
+      {/* Card — widen to match Four.Meme */}
+      <div className="bg-[#0b0b0b] border border-zinc-800 rounded-2xl p-6 shadow-lg w-full max-w-[680px]">
         <form onSubmit={onSubmit} className="space-y-4">
           <input
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             placeholder="Type your prompt here..."
-            className="w-full rounded-xl bg-zinc-900 border border-zinc-700 focus:border-zinc-500 p-3 outline-none placeholder-zinc-500 text-center"
+            className="w-full rounded-xl bg-zinc-900 border border-zinc-700 focus:border-zinc-500 p-3 outline-none placeholder-zinc-500"
           />
           <button
             type="submit"
@@ -68,12 +68,12 @@ export default function Home() {
         </form>
 
         {error && (
-          <div className="mt-3 text-red-400 bg-red-950/30 border border-red-700 rounded-lg p-3 text-center">
+          <div className="mt-4 text-red-400 bg-red-950/30 border border-red-700 rounded-lg p-3 text-center">
             Generation failed: {error}
           </div>
         )}
 
-        {/* Preview (same compact size as Four.Meme) */}
+        {/* Preview stays compact like Four.Meme */}
         <div className="mt-5 flex justify-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
