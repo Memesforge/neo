@@ -5,45 +5,36 @@ export default function Home() {
   const [prompt, setPrompt] = useState("");
   const [img, setImg] = useState("");
   const [loading, setLoading] = useState(false);
-  const [err, setErr] = useState("");
+  const [error, setError] = useState("");
 
-  async function onSubmit(e) {
-    e.preventDefault(); // <- stops page reload
-    setErr("");
+  async function handleGenerate() {
+    setError("");
     setImg("");
-    const p = prompt.trim();
-    if (!p) return setErr("Type a prompt first.");
+    const text = prompt.trim();
+    if (!text) {
+      setError("Type a prompt first");
+      return;
+    }
     setLoading(true);
-
     try {
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: p }),
+        body: JSON.stringify({ prompt: text }),
       });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
 
-      const data = await res.json().catch(() => ({}));
+      // try to find an image url in any known field
+      const url =
+        (Array.isArray(data.output) && data.output.find((x) => typeof x === "string")) ||
+        (typeof data.image === "string" && data.image) ||
+        null;
 
-      if (!res.ok) {
-        // our API sends { error: "..." } on failures
-        throw new Error(data?.error || `HTTP ${res.status}`);
-      }
-
-      // Support both possible API shapes
-      // 1) { image: "https://..." }
-      if (data?.image && typeof data.image === "string") {
-        setImg(data.image);
-      } else {
-        // 2) Raw Replicate prediction: { output: [...] } or { urls: { get, cancel } }
-        const out = data?.output;
-        const url =
-          (Array.isArray(out) && out.find(x => typeof x === "string")) ||
-          (typeof out === "string" ? out : null);
-        if (!url) throw new Error("No image URL returned.");
-        setImg(url);
-      }
-    } catch (e) {
-      setErr(e.message || "Generation failed.");
+      if (!url) throw new Error("No image URL returned");
+      setImg(url);
+    } catch (err) {
+      setError(err.message);
     } finally {
       setLoading(false);
     }
@@ -51,38 +42,26 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-black text-white flex items-center justify-center p-6">
-      <div className="w-full max-w-xl space-y-6">
-        <h1 className="text-4xl font-bold text-center">NEO Generator</h1>
+      <div className="w-full max-w-xl space-y-4">
+        <h1 className="text-4xl font-bold text-center">NEO TEST v1</h1>
 
-        <form onSubmit={onSubmit} className="space-y-3">
-          <input
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            placeholder="Type your prompt here"
-            className="w-full rounded-lg bg-zinc-900 border border-zinc-700 p-3 outline-none"
-          />
-          <button
-            type="submit" // safe because we call e.preventDefault() above
-            disabled={loading}
-            className="w-full rounded-lg p-3 font-semibold
-                       bg-gradient-to-r from-[#0d38fb] to-[#00e5ff] disabled:opacity-60"
-          >
-            {loading ? "Generating…" : "Generate"}
-          </button>
-        </form>
+        <input
+          value={prompt}
+          onChange={(e) => setPrompt(e.target.value)}
+          placeholder="Type your prompt here"
+          className="w-full rounded-lg bg-zinc-900 border border-zinc-700 p-3 outline-none"
+        />
 
-        {err && (
-          <div className="text-red-400 bg-red-950/40 border border-red-700 rounded p-3">
-            {err}
-          </div>
-        )}
+        <button
+          onClick={handleGenerate}
+          disabled={loading}
+          className="w-full rounded-lg p-3 font-semibold bg-[#0d38fb] disabled:opacity-60"
+        >
+          {loading ? "Generating…" : "Generate"}
+        </button>
 
-        {img && (
-          <div className="rounded-lg overflow-hidden border border-zinc-800">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={img} alt="result" className="w-full h-auto" />
-          </div>
-        )}
+        {error && <div className="text-red-400">{error}</div>}
+        {img && <img src={img} alt="result" className="w-full rounded-lg border border-zinc-800" />}
       </div>
     </main>
   );
