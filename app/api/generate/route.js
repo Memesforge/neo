@@ -12,6 +12,26 @@ function getOrigin() {
   return u.replace(/\/+$/, "");
 }
 
+// Deep-scan ANY JSON and return the first image-like URL string
+function findImageUrlDeep(any) {
+  const urls = [];
+  const rxExt = /^https?:\/\/.+\.(png|jpg|jpeg|webp|gif)(\?.*)?$/i;
+  const rxRep = /^https?:\/\/replicate\.delivery\/.+/i;
+
+  const walk = (v) => {
+    if (!v) return;
+    if (typeof v === "string") {
+      if (rxExt.test(v) || rxRep.test(v)) urls.push(v);
+      return;
+    }
+    if (Array.isArray(v)) return v.forEach(walk);
+    if (typeof v === "object") return Object.values(v).forEach(walk);
+  };
+
+  walk(any);
+  return urls[0] || null;
+}
+
 export async function POST(req) {
   try {
     const token = process.env.REPLICATE_API_TOKEN;
@@ -32,7 +52,7 @@ export async function POST(req) {
       `${origin}/neo4.png`,
     ];
 
-    // Kick off prediction
+    // Start prediction
     const start = await fetch("https://api.replicate.com/v1/predictions", {
       method: "POST",
       headers: {
@@ -52,7 +72,10 @@ export async function POST(req) {
 
     if (!start.ok) {
       const text = await start.text();
-      return NextResponse.json({ error: `Replicate start failed (${start.status}): ${text}` }, { status: 502 });
+      return NextResponse.json(
+        { error: `Replicate start failed (${start.status}): ${text}` },
+        { status: 502 }
+      );
     }
 
     let prediction = await start.json();
@@ -67,7 +90,7 @@ export async function POST(req) {
     while (
       prediction?.status &&
       !["succeeded", "failed", "canceled"].includes(prediction.status) &&
-      tries < 90
+      tries < 120 // up to ~2 minutes
     ) {
       await wait(1000);
       const r = await fetch(pollUrl, {
@@ -76,18 +99,49 @@ export async function POST(req) {
       });
       if (!r.ok) {
         const txt = await r.text();
-        return NextResponse.json({ error: `Replicate poll failed (${r.status}): ${txt}` }, { status: 502 });
+        return NextResponse.json(
+          { error: `Replicate poll failed (${r.status}): ${txt}` },
+          { status: 502 }
+        );
       }
       prediction = await r.json();
       tries++;
     }
 
     if (prediction.status !== "succeeded") {
-      return NextResponse.json({ error: `Generation ${prediction.status}`, prediction }, { status: 502 });
+      return NextResponse.json(
+        { error: `Generation ${prediction.status}`, prediction },
+        { status: 502 }
+      );
     }
 
-    // Always return prediction for the UI to scan
-    return NextResponse.json({ prediction }, { status: 200 });
+    // Normalize: find the first image URL anywhere in the JSON
+    const urlFromOutputArray =
+      (Array.isArray(prediction?.output) &&
+        prediction.output.find((x) => typeof x === "string")) ||
+      (typeof prediction?.output === "string" ? prediction.output : null);
+
+    const imageUrl = urlFromOutputArray || findImageUrlDeep(prediction);
+
+    if (!imageUrl) {
+      // Log a short sample to Vercel logs to inspect shape
+      console.log("Replicate prediction (no URL found):",
+        JSON.stringify({
+          id: prediction?.id,
+          status: prediction?.status,
+          outputType: typeof prediction?.output,
+          outputSample: Array.isArray(prediction?.output)
+            ? prediction.output.slice(0, 2)
+            : prediction?.output,
+        })
+      );
+      return NextResponse.json(
+        { error: "No image URL found in model output.", prediction },
+        { status: 502 }
+      );
+    }
+
+    return NextResponse.json({ image: imageUrl }, { status: 200 });
   } catch (e) {
     return NextResponse.json({ error: String(e?.message || e) }, { status: 502 });
   }
